@@ -176,6 +176,46 @@ mirror) # nightshift mirror [keep <id>|drop <id>]  — review the private observ
   esac
   ;;
 
+open) # nightshift open [page|read|roadmap|kept|home|protocol|config]  — no arg: the index
+  opener="open"; command -v xdg-open >/dev/null 2>&1 && opener="xdg-open"
+  opener="${NIGHTSHIFT_OPENER:-$opener}"
+  what="${1:-}"
+  if [ -z "$what" ]; then
+    echo "your nightshift, in one place:"
+    printf '%s\n' \
+      "page      $NS_HOME/index.html" \
+      "read      $NS_HOME/mirror/read.md" \
+      "roadmap   $NS_HOME/mirror/roadmap.md" \
+      "kept      $NS_HOME/mirror/kept.md" \
+      "config    $NS_HOME/config" \
+      "home      $NS_HOME" \
+      "protocol  $(cd "$LIB/.." && pwd)/MIRROR.md" \
+    | while read -r k p; do
+        if [ -e "$p" ]; then m="✓"; else m="·"; fi
+        printf "  %s %-9s %s\n" "$m" "$k" "$p"
+      done
+    cat <<'EOF'
+  nightshift open <name> opens it.  · = not made yet:
+    page needs `nightshift render` · read/roadmap come from the protocol (nightshift mirror deep)
+    kept comes from `nightshift mirror keep <id>`
+EOF
+    exit 0
+  fi
+  case "$what" in
+    page)     tgt="$NS_HOME/index.html"
+              [ -f "$tgt" ] || { need python3; NIGHTSHIFT_HOME="$NS_HOME" python3 "$LIB/render.py"; } ;;
+    read)     tgt="$NS_HOME/mirror/read.md";;
+    roadmap)  tgt="$NS_HOME/mirror/roadmap.md";;
+    kept)     tgt="$NS_HOME/mirror/kept.md";;
+    home)     tgt="$NS_HOME";;
+    protocol) tgt="$(cd "$LIB/.." && pwd)/MIRROR.md";;
+    config)   tgt="$NS_HOME/config";;
+    *) die "unknown: $what (page|read|roadmap|kept|home|protocol|config)";;
+  esac
+  [ -e "$tgt" ] || die "$what doesn't exist yet — run 'nightshift open' for the index and how to make it"
+  "$opener" "$tgt"
+  ;;
+
 render)
   need python3
   NIGHTSHIFT_HOME="$NS_HOME" python3 "$LIB/render.py"
@@ -238,7 +278,8 @@ nightshift — an encrypted, multi-session work journal for AI coding agents.
   nightshift score <id> right|wrong       score a call — the page tracks your hit rate
   nightshift due                          open calls past their due date
   nightshift render                       build the (encrypted) index.html
-  nightshift publish                      render + run DEPLOY_CMD
+  nightshift open [what]                  index of everything it made; open one in a click
+  nightshift publish                      render + commit the home + run DEPLOY_CMD
   nightshift doctor                       check deps, config & updates
   nightshift upgrade                      pull the latest nightshift
   nightshift version                      print the installed version
