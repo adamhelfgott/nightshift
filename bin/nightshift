@@ -92,6 +92,18 @@ call) # nightshift call <session> "<claim>" <confidence%> [due YYYY-MM-DD]  — 
   echo "call logged ($conf%) — score it later with: nightshift score $id right|wrong"
   ;;
 
+due) # nightshift due — open calls whose due date has passed (the ones to chase)
+  need jq
+  today="$(day)"
+  out=$(cat "$ENTRIES"/*.jsonl 2>/dev/null | jq -rs --arg today "$today" '
+    (map(select(.type=="score") | .id)) as $done
+    | map(select(.type=="call" and ((.id as $i | $done | index($i)) | not)))
+    | map(select(.due != null and .due != "" and .due <= $today))
+    | sort_by(.due)
+    | .[] | "\(.id)  due \(.due)  \(.conf)%  \(.session): \(.text)"')
+  [ -n "$out" ] && printf '%s\n' "$out" || echo "(nothing due)"
+  ;;
+
 score) # nightshift score <id> right|wrong
   need jq
   id="${1:?usage: nightshift score <id> right|wrong}"; v="${2:?right|wrong}"
@@ -199,6 +211,7 @@ nightshift — an encrypted, multi-session work journal for AI coding agents.
   nightshift mirror deep                  print the Mirror Protocol (the full deep-read)
   nightshift call <sess> <claim> <conf%>  log a falsifiable prediction [due YYYY-MM-DD]
   nightshift score <id> right|wrong       score a call — the page tracks your hit rate
+  nightshift due                          open calls past their due date
   nightshift render                       build the (encrypted) index.html
   nightshift publish                      render + run DEPLOY_CMD
   nightshift doctor                       check deps, config & updates

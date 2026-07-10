@@ -17,4 +17,11 @@ case "$inbox" in ""|"(inbox empty)"|"(no messages)") : ;; *) ctx="$ctx
 
 OPEN INTER-SESSION MESSAGES (nowish) — claim yours: nightshift pick <id> <your-session>
 $inbox" ;; esac
+# calls past their due date: the agent chases the scoring, or nothing ever gets scored
+NSBIN="$(cd "$(dirname "$0")/../bin" && pwd)/nightshift"
+due="$(NIGHTSHIFT_HOME="$NS" "$NSBIN" due 2>/dev/null | head -8)"
+case "$due" in ""|"(nothing due)") : ;; *) ctx="$ctx
+
+CALLS DUE — your human made these predictions and reality has reported back. Ask how each resolved, then score it: nightshift score <id> right|wrong
+$due" ;; esac
 python3 -c "import json,sys;print(json.dumps({'hookSpecificOutput':{'hookEventName':'SessionStart','additionalContext':sys.stdin.read()}}))" <<<"$ctx"
