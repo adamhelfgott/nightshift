@@ -27,7 +27,7 @@ case "$cmd" in
 init)
   mkdir -p "$ENTRIES"
   # journal is often git-inited; make sure the secret and the render never get committed
-  [ -f "$NS_HOME/.gitignore" ] || printf '.password\nindex.html\n.pending*\n.blocked*\n' > "$NS_HOME/.gitignore"
+  [ -f "$NS_HOME/.gitignore" ] || printf '.password\nindex.html\n.pending*\n.blocked*\nobservations.jsonl\nmirror.md\n' > "$NS_HOME/.gitignore"
   [ -f "$NS_HOME/config" ] || cat > "$NS_HOME/config" <<EOF
 # nightshift config
 TITLE="Night Shift"
@@ -36,6 +36,10 @@ GATE_SUBTITLE="burning the oil is members-only"
 #   DEPLOY_CMD="vercel --prod --yes"
 #   DEPLOY_CMD="netlify deploy --prod --dir=."
 DEPLOY_CMD=""
+# MIRROR=1 turns on the observation register: your agent may log observations
+# ABOUT YOU (patterns, blind spots, calls worth revisiting) to a PRIVATE inbox
+# that never appears on the shared page. Review with: nightshift mirror
+MIRROR=0
 EOF
   if [ ! -f "$NS_HOME/.password" ]; then
     if [ -t 0 ]; then
@@ -75,6 +79,40 @@ pick) # nightshift pick <id> <by>
 inbox) # nightshift inbox [session]
   [ -f "$NOWISH" ] || { echo "(no messages)"; exit 0; }
   NIGHTSHIFT_HOME="$NS_HOME" python3 "$LIB/inbox.py" "${1:-all}"
+  ;;
+
+observe) # nightshift observe <session> "<text>"  — an observation about your human collaborator
+  need jq
+  sess="${1:?usage: nightshift observe <session> <text>}"; text="${2:?text}"
+  jq -cn --arg id "$(uid)" --arg ts "$(ts)" --arg s "$sess" --arg t "$text" \
+    '{k:"obs",id:$id,ts:$ts,session:$s,text:$t}' >> "$NS_HOME/observations.jsonl"
+  echo "observed (private — review with: nightshift mirror)"
+  ;;
+
+mirror) # nightshift mirror [keep <id>|drop <id>]  — review the private observation inbox
+  need jq
+  OBS="$NS_HOME/observations.jsonl"
+  sub="${1:-list}"
+  case "$sub" in
+    keep|drop)
+      id="${2:?usage: nightshift mirror $sub <id>}"
+      line=$(jq -c --arg id "$id" 'select(.k=="obs" and .id==$id)' "$OBS" 2>/dev/null | head -1)
+      [ -n "$line" ] || die "no observation with id $id"
+      if [ "$sub" = "keep" ]; then
+        printf -- "- %s (%s, %s)\n" "$(printf '%s' "$line" | jq -r .text)" \
+          "$(printf '%s' "$line" | jq -r .session)" "$(printf '%s' "$line" | jq -r .ts)" >> "$NS_HOME/mirror.md"
+      fi
+      jq -cn --arg id "$id" --arg ts "$(ts)" --arg v "$sub" '{k:"res",id:$id,ts:$ts,verdict:$v}' >> "$OBS"
+      [ "$sub" = "keep" ] && echo "kept -> $NS_HOME/mirror.md" || echo "dropped"
+      ;;
+    list|*)
+      [ -f "$OBS" ] || { echo "(no observations)"; exit 0; }
+      out=$(jq -rs '(map(select(.k=="res") | .id)) as $done
+        | map(select(.k=="obs" and ((.id as $i | $done | index($i)) | not)))
+        | .[] | "\(.id)  \(.ts)  \(.session): \(.text)"' "$OBS")
+      [ -n "$out" ] && printf '%s\n' "$out" || echo "(inbox clear)"
+      ;;
+  esac
   ;;
 
 render)
@@ -127,6 +165,8 @@ nightshift — an encrypted, multi-session work journal for AI coding agents.
   nightshift send <from> <to|all> <text>  send an inter-session (nowish) message
   nightshift inbox [session]              open messages for you / all
   nightshift pick <id> <by>               claim/ack a message
+  nightshift observe <session> <text>     log an observation about your human (private)
+  nightshift mirror [keep|drop <id>]      review that private inbox (never published)
   nightshift render                       build the (encrypted) index.html
   nightshift publish                      render + run DEPLOY_CMD
   nightshift doctor                       check deps, config & updates

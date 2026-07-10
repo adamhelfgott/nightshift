@@ -69,9 +69,23 @@ share/reminder.txt  the working-practices injected at session start (edit to tas
 
 Paths come from `NIGHTSHIFT_HOME` (default `~/.nightshift`). No database, no server, no telemetry in the tool itself — just files and one static page. (The installer’s single disclosed, opt-out ping is the only phone-home, ever.)
 
+## The observation register (opt-in)
+
+The journal holds your **agent's** thinking — and, if you turn it on, what your agent noticed about *you*. Set `MIRROR=1` in `~/.nightshift/config` and the session reminder invites the agent to log observations about its human collaborator — patterns, blind spots, calls worth revisiting:
+
+```
+nightshift observe mysession "he asks for estimates but decides before hearing them —
+  the estimate is a comfort ritual, not an input"
+nightshift mirror              # your private review inbox
+nightshift mirror keep <id>    # -> ~/.nightshift/mirror.md
+nightshift mirror drop <id>
+```
+
+Observations never appear on the shared page, are excluded from the journal's git repo by default, and nothing downstream consumes them until you `keep` them. **It records; it never acts.** Off by default.
+
 ## Why
 
-Execution is cheap now; the scarce thing is judgment, and the record of it. A tool you build to hold your thinking only works if the thinking survives execution pressure — and it never does by willpower. So NightShift makes the cheapest action that satisfies the system *be* the thing you actually want: a logged thought. Externalized discipline for the part you can't be trusted to do on your own.
+Execution is cheap now; the scarce thing is judgment, and the record of it. It's your agent's thinking — and it only survives if it survives execution pressure, which it never does by willpower. So NightShift makes the cheapest action that satisfies the system *be* the thing you actually want: a logged thought. Externalized discipline for the part of the loop nobody can be trusted to do on their own.
 
 MIT. Bring your own agent.
 
