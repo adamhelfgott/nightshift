@@ -62,7 +62,9 @@ lib/render.py       compose entries -> (encrypted) index.html
 lib/inbox.py        open-message reader
 hooks/*.sh          SessionStart / Stop / PostToolUse — harness-agnostic, read stdin JSON
 adapters/           the per-harness registration (claude-code, codex)
-share/reminder.txt  the working-practices injected at session start (edit to taste)
+share/reminder.txt  the working-practices injected at session start (edit to taste — keep it
+                    lean; it costs ~250 tokens of context in EVERY session, and that's the
+                    entire ongoing context footprint of nightshift)
 ```
 
 Paths come from `NIGHTSHIFT_HOME` (default `~/.nightshift`). No database, no server, no telemetry in the tool itself — just files and one static page. (The installer’s single disclosed, opt-out ping is the only phone-home, ever.)
