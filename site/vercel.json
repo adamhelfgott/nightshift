@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/install", "destination": "https://raw.githubusercontent.com/adamhelfgott/nightshift/main/install.sh" },
+    { "source": "/install.sh", "destination": "https://raw.githubusercontent.com/adamhelfgott/nightshift/main/install.sh" }
+  ]
+}

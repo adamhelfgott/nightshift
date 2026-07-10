@@ -30,9 +30,13 @@ GATE_SUBTITLE="burning the oil is members-only"
 DEPLOY_CMD=""
 EOF
   if [ ! -f "$NS_HOME/.password" ]; then
-    printf "Set a password to encrypt the published page (blank = no encryption): "
-    read -rs pw; echo
-    [ -n "$pw" ] && { umask 077; printf '%s' "$pw" > "$NS_HOME/.password"; echo "encryption on."; } || echo "encryption off (plain page)."
+    if [ -t 0 ]; then
+      printf "Set a password to encrypt the published page (blank = no encryption): "
+      read -rs pw; echo
+      [ -n "$pw" ] && { umask 077; printf '%s' "$pw" > "$NS_HOME/.password"; echo "encryption on."; } || echo "encryption off (plain page)."
+    else
+      echo "non-interactive shell: encryption off (plain page). run 'nightshift init' in a terminal to add a password."
+    fi
   fi
   echo "initialized $NS_HOME"
   ;;

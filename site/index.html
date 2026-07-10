@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>nightshift — a work journal for AI coding agents that forces the thinking</title>
+<meta name="description" content="An encrypted, multi-session work journal for AI coding agents — with a Stop hook that won't let a turn end on a receipt. The thinking survives execution pressure because the harness makes it." />
+<meta property="og:title" content="nightshift — a work journal for AI coding agents" />
+<meta property="og:description" content="Your agent remembers what it shipped. It forgets what it thought. nightshift keeps the thinking — because the harness makes it." />
+<meta property="og:type" content="website" />
+<meta name="theme-color" content="#141210" />
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg: oklch(0.165 0.012 60);
+  --bg-2: oklch(0.205 0.014 60);
+  --bg-3: oklch(0.245 0.016 62);
+  --ink: oklch(0.945 0.008 85);
+  --muted: oklch(0.73 0.014 72);
+  --faint: oklch(0.55 0.012 70);
+  --amber: oklch(0.80 0.135 74);
+  --amber-deep: oklch(0.70 0.15 66);
+  --indigo: oklch(0.70 0.11 268);
+  --line: oklch(0.32 0.012 68 / 0.9);
+  --line-soft: oklch(0.30 0.012 68 / 0.45);
+  --ok: oklch(0.80 0.13 155);
+  --font-display: "Clash Display", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "General Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --maxw: 1140px;
+  --z-nav: 100;
+}
+*{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+@media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--font-sans); font-size:clamp(1rem,0.96rem + 0.2vw,1.075rem);
+  line-height:1.6; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+/* warm ambient glow, like a bulb somewhere off-frame */
+body::before{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(120vw 80vh at 78% -10%, oklch(0.80 0.135 74 / 0.10), transparent 60%),
+    radial-gradient(90vw 60vh at 0% 40%, oklch(0.70 0.11 268 / 0.06), transparent 55%);
+}
+a{ color:inherit; text-decoration:none; }
+h1,h2,h3{ font-family:var(--font-display); font-weight:600; letter-spacing:-0.02em; line-height:1.04; text-wrap:balance; margin:0; }
+p{ margin:0; text-wrap:pretty; }
+.wrap{ width:100%; max-width:var(--maxw); margin-inline:auto; padding-inline:clamp(1.25rem,4vw,2.5rem); }
+.mono{ font-family:var(--font-mono); }
+.label{ font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); }
+.amber{ color:var(--amber); }
+
+/* ---------- nav ---------- */
+header.nav{ position:sticky; top:0; z-index:var(--z-nav);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  background:oklch(0.165 0.012 60 / 0.72); border-bottom:1px solid var(--line-soft); }
+.nav-in{ display:flex; align-items:center; justify-content:space-between; height:60px; }
+.brand{ display:flex; align-items:center; gap:0.6rem; font-family:var(--font-mono); font-weight:500; font-size:0.95rem; letter-spacing:-0.01em; }
+.brand .dot{ width:10px; height:10px; border-radius:50%; background:var(--amber);
+  box-shadow:0 0 14px 1px oklch(0.80 0.135 74 / 0.8); animation:pulse 3.4s ease-in-out infinite; }
+@keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }
+.nav-links{ display:flex; align-items:center; gap:1.6rem; font-family:var(--font-mono); font-size:0.83rem; }
+.nav-links a{ color:var(--muted); transition:color .18s ease; }
+.nav-links a:hover{ color:var(--ink); }
+.nav-gh{ display:inline-flex; align-items:center; gap:0.45rem; padding:0.36rem 0.7rem; border:1px solid var(--line);
+  border-radius:8px; color:var(--ink)!important; transition:border-color .18s ease, background .18s ease; }
+.nav-gh:hover{ border-color:var(--amber-deep); background:oklch(0.80 0.135 74 / 0.07); }
+.nav-gh .star{ color:var(--faint); }
+@media (max-width:680px){ .nav-links a.link-hide{ display:none; } }
+
+/* ---------- hero ---------- */
+.hero{ padding:clamp(3.5rem,8vw,7rem) 0 clamp(2.5rem,5vw,4rem); }
+.hero-grid{ display:grid; grid-template-columns:1.05fr 1fr; gap:clamp(2rem,5vw,4rem); align-items:center; }
+@media (max-width:920px){ .hero-grid{ grid-template-columns:1fr; gap:2.75rem; } }
+.hero h1{ font-size:clamp(2.5rem,2.2rem + 3.6vw,4.5rem); }
+.hero h1 .thought{ color:var(--amber); display:block; }
+.hero .sub{ margin-top:1.5rem; max-width:36ch; color:var(--muted); font-size:clamp(1.05rem,1rem + 0.4vw,1.2rem); }
+.hero .sub b{ color:var(--ink); font-weight:500; }
+
+.cta-row{ display:flex; flex-wrap:wrap; align-items:center; gap:0.9rem; margin-top:2rem; }
+.installbox{ display:flex; align-items:center; gap:0.75rem; background:var(--bg-2); border:1px solid var(--line);
+  border-radius:11px; padding:0.7rem 0.7rem 0.7rem 1rem; font-family:var(--font-mono); font-size:0.9rem; }
+.installbox .prompt{ color:var(--amber); }
+.installbox code{ color:var(--ink); white-space:nowrap; }
+.copy{ display:inline-flex; align-items:center; gap:0.4rem; border:0; cursor:pointer; font-family:var(--font-mono);
+  font-size:0.75rem; color:var(--bg); background:var(--amber); padding:0.4rem 0.65rem; border-radius:7px;
+  transition:background .18s ease, transform .1s ease; }
+.copy:hover{ background:var(--amber-deep); }
+.copy:active{ transform:translateY(1px); }
+.copy.copied{ background:var(--ok); }
+.btn-ghost{ display:inline-flex; align-items:center; gap:0.5rem; padding:0.72rem 1.1rem; border:1px solid var(--line);
+  border-radius:11px; font-family:var(--font-mono); font-size:0.85rem; color:var(--muted);
+  transition:border-color .18s ease, color .18s ease; }
+.btn-ghost:hover{ border-color:var(--amber-deep); color:var(--ink); }
+
+.hero-stats{ display:flex; gap:2rem; margin-top:2.25rem; font-family:var(--font-mono); }
+.hero-stats .stat .n{ font-size:1.55rem; color:var(--ink); font-weight:500; font-variant-numeric:tabular-nums; }
+.hero-stats .stat .k{ font-size:0.72rem; color:var(--faint); letter-spacing:0.05em; margin-top:0.2rem; }
+
+/* ---------- terminal ---------- */
+.term{ position:relative; border-radius:14px; border:1px solid var(--line);
+  background:linear-gradient(180deg, var(--bg-2), oklch(0.185 0.013 60));
+  box-shadow:0 40px 90px -50px oklch(0 0 0 / 0.9), 0 0 0 1px oklch(0.80 0.135 74 / 0.05),
+             0 0 80px -30px oklch(0.80 0.135 74 / 0.35);
+  overflow:hidden; }
+.term-bar{ display:flex; align-items:center; gap:0.5rem; padding:0.7rem 0.95rem; border-bottom:1px solid var(--line-soft);
+  background:oklch(0.22 0.013 60 / 0.6); }
+.term-bar .tl{ width:11px; height:11px; border-radius:50%; background:var(--bg-3); }
+.term-bar .name{ margin-left:0.6rem; font-family:var(--font-mono); font-size:0.74rem; color:var(--faint); }
+.term-body{ padding:1.15rem 1.25rem 1.35rem; font-family:var(--font-mono); font-size:0.83rem; line-height:1.75;
+  min-height:340px; }
+.tline{ display:block; white-space:pre-wrap; word-break:break-word; }
+.tline .u{ color:var(--faint); }        /* user prompt marker */
+.tline .agent{ color:var(--muted); }
+.tline .ship{ color:var(--ink); }
+.tline .ok{ color:var(--ok); }
+.tblock{ display:block; margin:0.5rem 0; padding:0.6rem 0.8rem; border-radius:8px; }
+.tblock.block{ background:oklch(0.70 0.15 66 / 0.10); border:1px solid oklch(0.70 0.15 66 / 0.35); color:var(--amber); }
+.tblock.pass{ background:oklch(0.80 0.13 155 / 0.09); border:1px solid oklch(0.80 0.13 155 / 0.3); color:var(--ok); }
+.tblock .tag{ font-weight:500; }
+.tline .think{ color:var(--ink); }
+.cursor{ display:inline-block; width:0.55em; height:1.05em; vertical-align:-0.18em; background:var(--amber);
+  margin-left:2px; animation:blink 1.05s steps(2,start) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+
+/* ---------- generic section ---------- */
+section{ padding:clamp(3.5rem,7vw,6rem) 0; }
+.sec-head{ max-width:52ch; }
+.sec-head .kick{ font-family:var(--font-mono); font-size:0.78rem; color:var(--amber); letter-spacing:0.04em; }
+.sec-head h2{ font-size:clamp(1.8rem,1.5rem + 1.8vw,2.9rem); margin-top:0.9rem; }
+.sec-head p{ margin-top:1.1rem; color:var(--muted); font-size:1.08rem; max-width:46ch; }
+
+/* problem band */
+.problem{ border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft);
+  background:oklch(0.15 0.011 60 / 0.6); }
+.problem .big{ font-family:var(--font-display); font-size:clamp(1.6rem,1.3rem + 2vw,2.6rem); font-weight:600;
+  letter-spacing:-0.02em; line-height:1.18; max-width:20ch; }
+.problem .big .dim{ color:var(--faint); }
+.problem-grid{ display:grid; grid-template-columns:1fr 0.9fr; gap:clamp(2rem,5vw,4rem); align-items:end; }
+@media (max-width:820px){ .problem-grid{ grid-template-columns:1fr; gap:2rem; } }
+.contrast{ display:grid; gap:0.9rem; }
+.contrast .row{ font-family:var(--font-mono); font-size:0.86rem; display:grid; grid-template-columns:auto 1fr; gap:0.9rem; align-items:baseline; }
+.contrast .row .k{ color:var(--faint); white-space:nowrap; }
+.contrast .row.gone .v{ color:var(--faint); text-decoration:line-through; text-decoration-color:oklch(0.55 0.012 70 / 0.5); }
+.contrast .row.kept .v{ color:var(--amber); }
+
+/* how it works — alternating rows, not a card grid */
+.feature{ display:grid; grid-template-columns:1fr 1fr; gap:clamp(2rem,5vw,4.5rem); align-items:center;
+  padding:clamp(2.25rem,4vw,3.5rem) 0; border-top:1px solid var(--line-soft); }
+.feature:first-of-type{ border-top:0; }
+.feature.flip .f-visual{ order:-1; }
+@media (max-width:820px){ .feature{ grid-template-columns:1fr; gap:1.75rem; padding:2.5rem 0; }
+  .feature.flip .f-visual{ order:0; } }
+.f-copy .n{ font-family:var(--font-mono); font-size:0.78rem; color:var(--amber); }
+.f-copy h3{ font-size:clamp(1.4rem,1.2rem + 1vw,1.9rem); margin-top:0.7rem; }
+.f-copy p{ margin-top:0.9rem; color:var(--muted); max-width:42ch; }
+.f-copy p code{ font-family:var(--font-mono); font-size:0.85em; color:var(--ink); background:var(--bg-2);
+  padding:0.1em 0.4em; border-radius:5px; border:1px solid var(--line-soft); }
+.f-visual{ min-width:0; }
+.panel{ background:var(--bg-2); border:1px solid var(--line); border-radius:12px; padding:1.1rem 1.2rem;
+  font-family:var(--font-mono); font-size:0.82rem; line-height:1.7; box-shadow:0 24px 60px -45px oklch(0 0 0 / 0.9); }
+.panel .hdr{ font-size:0.72rem; color:var(--faint); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:0.8rem;
+  display:flex; align-items:center; gap:0.5rem; }
+.panel .hdr::before{ content:""; width:7px; height:7px; border-radius:50%; background:var(--amber); }
+.receipt{ color:var(--faint); }
+.receipt s{ text-decoration-color:oklch(0.55 0.012 70 / 0.6); }
+.diaryline{ color:var(--ink); font-family:var(--font-sans); line-height:1.55; margin-top:0.6rem; }
+.diaryline .g{ color:var(--amber); }
+.note{ display:grid; gap:0.55rem; }
+.note .msg{ display:grid; grid-template-columns:auto 1fr; gap:0.7rem; align-items:baseline; }
+.note .from{ color:var(--indigo); }
+.note .to{ color:var(--faint); }
+.note .msg.fade{ opacity:0.5; }
+.lockrow{ display:flex; align-items:center; gap:0.8rem; color:var(--muted); }
+.lockrow svg{ flex:none; }
+
+/* install / wire-in */
+.install-sec{ border-top:1px solid var(--line-soft); }
+.oneliner{ margin-top:1.75rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;
+  background:var(--bg-2); border:1px solid var(--line); border-radius:12px; padding:0.9rem 0.9rem 0.9rem 1.15rem; }
+.oneliner code{ font-family:var(--font-mono); font-size:clamp(0.82rem,0.78rem + 0.4vw,0.98rem); color:var(--ink); }
+.oneliner .prompt{ color:var(--amber); }
+.steps{ margin-top:2.25rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:1px;
+  background:var(--line-soft); border:1px solid var(--line-soft); border-radius:12px; overflow:hidden; }
+.step{ background:var(--bg); padding:1.35rem 1.4rem; }
+.step .num{ font-family:var(--font-mono); font-size:0.75rem; color:var(--amber); }
+.step h4{ margin:0.6rem 0 0.4rem; font-family:var(--font-sans); font-weight:600; font-size:1.02rem; }
+.step p{ color:var(--muted); font-size:0.94rem; }
+.step code{ font-family:var(--font-mono); color:var(--ink); font-size:0.86em; }
+
+.tabs{ margin-top:2.5rem; }
+.tabbar{ display:flex; gap:0.4rem; font-family:var(--font-mono); font-size:0.83rem; }
+.tab{ padding:0.5rem 0.95rem; border:1px solid var(--line); border-bottom:0; border-radius:9px 9px 0 0;
+  background:var(--bg); color:var(--muted); cursor:pointer; transition:color .16s ease, background .16s ease; }
+.tab[aria-selected="true"]{ background:var(--bg-2); color:var(--amber); }
+.tabpanel{ border:1px solid var(--line); border-radius:0 12px 12px 12px; background:var(--bg-2);
+  padding:1.2rem 1.35rem; font-family:var(--font-mono); font-size:0.85rem; line-height:1.8; }
+.tabpanel[hidden]{ display:none; }
+.tabpanel .c{ color:var(--muted); }
+.tabpanel .p{ color:var(--amber); }
+.tabpanel .note-sm{ color:var(--faint); font-size:0.8rem; margin-top:0.7rem; }
+
+/* why / closing */
+.why{ border-top:1px solid var(--line-soft);
+  background:radial-gradient(80vw 50vh at 50% 120%, oklch(0.80 0.135 74 / 0.09), transparent 60%); }
+.why .statement{ font-family:var(--font-display); font-weight:600; letter-spacing:-0.02em;
+  font-size:clamp(1.7rem,1.4rem + 2.2vw,3rem); line-height:1.18; max-width:22ch; text-wrap:balance; }
+.why .statement .amber{ color:var(--amber); }
+.why p.after{ margin-top:1.75rem; color:var(--muted); max-width:52ch; }
+.why .cta-row{ margin-top:2.25rem; }
+
+/* footer */
+footer{ border-top:1px solid var(--line-soft); padding:3rem 0 3.5rem; }
+.foot{ display:flex; flex-wrap:wrap; gap:1.5rem 2.5rem; align-items:center; justify-content:space-between;
+  font-family:var(--font-mono); font-size:0.82rem; color:var(--faint); }
+.foot a{ color:var(--muted); transition:color .16s ease; }
+.foot a:hover{ color:var(--amber); }
+.foot .l{ display:flex; align-items:center; gap:0.55rem; }
+.foot .links{ display:flex; gap:1.4rem; flex-wrap:wrap; }
+.telem{ margin-top:1.5rem; font-family:var(--font-mono); font-size:0.74rem; color:var(--faint); max-width:70ch; line-height:1.6; }
+.telem code{ color:var(--muted); }
+
+/* reveal */
+.reveal{ opacity:0; transform:translateY(16px); transition:opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
+.reveal.in{ opacity:1; transform:none; }
+@media (prefers-reduced-motion: reduce){
+  .reveal{ opacity:1; transform:none; transition:none; }
+  .brand .dot{ animation:none; }
+  .cursor{ animation:none; }
+}
+::selection{ background:oklch(0.80 0.135 74 / 0.28); color:var(--ink); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a href="#top" class="brand"><span class="dot" aria-hidden="true"></span>nightshift</a>
+    <nav class="nav-links">
+      <a href="#how" class="link-hide">how it works</a>
+      <a href="#install" class="link-hide">install</a>
+      <a class="nav-gh" href="https://github.com/adamhelfgott/nightshift" target="_blank" rel="noopener">
+        GitHub <span class="star" id="gh-star">★</span>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <h1>Your agent remembers<br>what it shipped.<span class="thought">It forgets what it thought.</span></h1>
+        <p class="sub"><b>nightshift</b> is an encrypted, multi-session work journal for AI coding agents — and a Stop hook that won't let a turn end on a receipt. The thinking survives execution pressure because the harness makes it, not because anyone remembers to.</p>
+
+        <div class="cta-row">
+          <div class="installbox">
+            <span class="prompt">$</span>
+            <code id="install-cmd">curl -fsSL night-shift.sh/install | bash</code>
+            <button class="copy" id="copy-btn" aria-label="Copy install command">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              <span id="copy-label">copy</span>
+            </button>
+          </div>
+          <a class="btn-ghost" href="https://github.com/adamhelfgott/nightshift" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.6.69.49A10.26 10.26 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z"/></svg>
+            Source &amp; docs
+          </a>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat"><div class="n" id="stat-installs">—</div><div class="k">journals started</div></div>
+          <div class="stat"><div class="n" id="stat-stars">—</div><div class="k">github stars</div></div>
+          <div class="stat"><div class="n">2</div><div class="k">harnesses · CC + Codex</div></div>
+        </div>
+      </div>
+
+      <!-- product-as-hero: the Stop hook refusing a receipt -->
+      <div class="term reveal" role="img" aria-label="A terminal where nightshift blocks a turn that logged only a deploy, and the agent then logs what it actually figured out.">
+        <div class="term-bar" aria-hidden="true">
+          <span class="tl"></span><span class="tl"></span><span class="tl"></span>
+          <span class="name">claude — nightshift Stop hook</span>
+        </div>
+        <div class="term-body" id="term"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section class="problem">
+    <div class="wrap problem-grid">
+      <div class="reveal">
+        <p class="big">Execution is cheap now. Judgment is the scarce thing —<span class="dim"> and the record of it evaporates every session.</span></p>
+      </div>
+      <div class="contrast reveal">
+        <div class="row"><span class="k">git log&nbsp;&nbsp;→</span><span class="v">what the machine <b>did</b></span></div>
+        <div class="row gone"><span class="k">the rest →</span><span class="v">the connection it made at 2am</span></div>
+        <div class="row gone"><span class="k"></span><span class="v">the doubt it had and didn't say</span></div>
+        <div class="row gone"><span class="k"></span><span class="v">the thing it got wrong, and why</span></div>
+        <div class="row kept"><span class="k">nightshift →</span><span class="v">kept. encrypted. across every session.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="kick">// how it works</div>
+        <h2>Four moving parts. One idea: don't trust willpower.</h2>
+        <p>Agents, like people, drift to logging <em>receipts</em> instead of thinking. So the discipline lives in the harness, not in a reminder nobody follows.</p>
+      </div>
+
+      <div class="feature reveal">
+        <div class="f-copy">
+          <div class="n">01 · enforcement, not exhortation</div>
+          <h3>A Stop hook that won't accept a receipt</h3>
+          <p>When a turn tries to end on <code>deployed X ✓</code> and nothing else, the hook blocks it — once — until a real <code>diary</code> or <code>idea</code> entry exists. The cheapest way to satisfy the system becomes the thing you actually wanted: a logged thought.</p>
+        </div>
+        <div class="f-visual">
+          <div class="panel">
+            <div class="hdr">stop hook</div>
+            <div class="receipt"><s>› deployed the counter API ✓</s></div>
+            <div style="color:var(--amber-deep);margin:0.5rem 0;">⛔ turn can't end on a receipt — what did you figure out?</div>
+            <div class="diaryline"><span class="g">diary ›</span> the bug wasn't the cache. two sessions shared one lock file — I only caught it because the timestamps were 4h apart.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature flip reveal">
+        <div class="f-copy">
+          <div class="n">02 · two registers</div>
+          <h3>The receipt and the thought are different textures</h3>
+          <p>Mono for what shipped. Prose for what you noticed. The page keeps both, but only the second one compounds — so nightshift is built to protect it.</p>
+        </div>
+        <div class="f-visual">
+          <div class="panel">
+            <div class="hdr">2026-07-09 · oss-site</div>
+            <div class="receipt">shipped · install.sh + counter API live</div>
+            <div class="diaryline">the move I actually like: the <span class="g">site uses the same two registers the product is about</span>. the medium is the message. also — this is the second thing built for strangers tonight.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature reveal">
+        <div class="f-copy">
+          <div class="n">03 · nowish</div>
+          <h3>Sessions leave notes for each other</h3>
+          <p>Run several agents at once and they collide. <code>send</code> / <code>inbox</code> / <code>pick</code> passes short notes between sessions — "editing render.py, don't touch" — shown in a band that fades as it ages.</p>
+        </div>
+        <div class="f-visual">
+          <div class="panel note">
+            <div class="hdr">passing notes</div>
+            <div class="msg"><span class="from">mirror →</span><span><span class="to">deploy-night:</span> render.py has newest-first grouping now — log via the hook so days align.</span></div>
+            <div class="msg fade"><span class="from">relay →</span><span><span class="to">all:</span> claiming the fleet deploy. hold until it lands.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature flip reveal">
+        <div class="f-copy">
+          <div class="n">04 · yours, encrypted</div>
+          <h3>One private page. No server, no telemetry.</h3>
+          <p>Entries are append-only <code>jsonl</code>. The published page is AES-GCM encrypted behind a password, client-side. Host it anywhere — Vercel, Netlify, a file on disk. Nothing phones home.</p>
+        </div>
+        <div class="f-visual">
+          <div class="panel">
+            <div class="hdr">the published page</div>
+            <div class="lockrow" style="margin-bottom:0.7rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              <span>burning the oil is members-only</span>
+            </div>
+            <div class="receipt">•••••••••••  •••••  ••••••••</div>
+            <div class="receipt">••••  ••••••••••  ••  ••••</div>
+            <div style="color:var(--faint);margin-top:0.7rem;font-size:0.78rem;">decrypts in the browser — the host never sees plaintext.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install" class="install-sec">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="kick">// install</div>
+        <h2>One line to start. One core, two harnesses.</h2>
+        <p>The installer reads cleanly before you run it. It sets nightshift up, versions your journal as its own git repo, and never touches anything as root.</p>
+      </div>
+
+      <div class="oneliner reveal">
+        <span class="prompt mono">$</span>
+        <code id="install-cmd-2">curl -fsSL night-shift.sh/install | bash</code>
+        <button class="copy" id="copy-btn-2" aria-label="Copy install command" style="margin-left:auto;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          <span>copy</span>
+        </button>
+      </div>
+
+      <div class="steps reveal">
+        <div class="step"><div class="num">it does →</div><h4>Sets you up</h4><p>Drops the <code>nightshift</code> command on your PATH and runs <code>init</code>.</p></div>
+        <div class="step"><div class="num">it does →</div><h4>Versions your journal</h4><p><code>git init</code>s <code>~/.nightshift</code> — your thinking is a real repo from entry one.</p></div>
+        <div class="step"><div class="num">it does →</div><h4>Wires the harness</h4><p>Points you at the Claude Code / Codex adapter so the Stop hook is live.</p></div>
+      </div>
+
+      <div class="tabs reveal">
+        <div class="tabbar" role="tablist" aria-label="Wire into your agent">
+          <button class="tab" role="tab" id="tab-cc" aria-selected="true" aria-controls="panel-cc">Claude Code</button>
+          <button class="tab" role="tab" id="tab-cx" aria-selected="false" aria-controls="panel-cx">Codex</button>
+        </div>
+        <div class="tabpanel" id="panel-cc" role="tabpanel" aria-labelledby="tab-cc">
+          <div><span class="c"># merge the hooks into ~/.claude/settings.json</span></div>
+          <div><span class="p">$</span> bash adapters/claude-code/install.sh</div>
+          <div class="note-sm">Then open <code>/hooks</code> once so Claude Code picks them up. SessionStart injects the practices; Stop enforces them.</div>
+        </div>
+        <div class="tabpanel" id="panel-cx" role="tabpanel" aria-labelledby="tab-cx" hidden>
+          <div><span class="c"># copy the native hooks into ~/.codex/config.toml</span></div>
+          <div><span class="p">$</span> cat adapters/codex/hooks.toml &gt;&gt; ~/.codex/config.toml</div>
+          <div class="note-sm">Codex's native SessionStart / Stop / PostToolUse hooks take the same stdin JSON — the same scripts run unchanged. See <code>adapters/codex/README.md</code>.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY -->
+  <section class="why">
+    <div class="wrap">
+      <p class="statement reveal">A tool you build to hold your thinking only works if the thinking <span class="amber">survives execution pressure</span> — and it never does by willpower.</p>
+      <p class="after reveal">So nightshift makes the cheapest action that satisfies the system <em>be</em> the thing you actually want: a logged thought. Externalized discipline for the part you can't be trusted to do on your own.</p>
+      <div class="cta-row reveal">
+        <a class="btn-ghost" href="https://github.com/adamhelfgott/nightshift" target="_blank" rel="noopener" style="color:var(--ink);border-color:var(--amber-deep);">
+          Read the source →
+        </a>
+        <span class="mono" style="color:var(--faint);font-size:0.85rem;">MIT · bring your own agent</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <span class="l"><span class="brand" style="font-size:0.86rem;"><span class="dot" aria-hidden="true"></span>nightshift</span></span>
+      <div class="links">
+        <a href="https://github.com/adamhelfgott/nightshift" target="_blank" rel="noopener">GitHub</a>
+        <a href="#how">How it works</a>
+        <a href="#install">Install</a>
+        <a href="/install" target="_blank" rel="noopener">Read install.sh</a>
+      </div>
+    </div>
+    <p class="telem">
+      One anonymous ping is sent on install so we can count adoption — a tally, no machine ID, no personal data.
+      Opt out with <code>NIGHTSHIFT_NO_TELEMETRY=1</code>. This page uses privacy-friendly, cookieless analytics. That's the whole of it.
+    </p>
+  </div>
+</footer>
+
+<script defer src="/_vercel/insights/script.js"></script>
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- copy buttons ---- */
+  var CMD = 'curl -fsSL night-shift.sh/install | bash';
+  function wireCopy(btnId, labelSel){
+    var btn = document.getElementById(btnId); if(!btn) return;
+    btn.addEventListener('click', function(){
+      navigator.clipboard && navigator.clipboard.writeText(CMD);
+      btn.classList.add('copied');
+      var lab = labelSel ? btn.querySelector(labelSel) : btn.querySelector('span');
+      var prev = lab ? lab.textContent : '';
+      if(lab) lab.textContent = 'copied ✓';
+      setTimeout(function(){ btn.classList.remove('copied'); if(lab) lab.textContent = prev; }, 1600);
+    });
+  }
+  wireCopy('copy-btn', '#copy-label');
+  wireCopy('copy-btn-2', 'span');
+
+  /* ---- tabs ---- */
+  var tabs = [['tab-cc','panel-cc'],['tab-cx','panel-cx']];
+  tabs.forEach(function(pair){
+    document.getElementById(pair[0]).addEventListener('click', function(){
+      tabs.forEach(function(p){
+        var sel = p[0]===pair[0];
+        document.getElementById(p[0]).setAttribute('aria-selected', sel);
+        document.getElementById(p[1]).hidden = !sel;
+      });
+    });
+  });
+
+  /* ---- reveal on scroll ---- */
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.14 });
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+
+  /* ---- count up ---- */
+  function countTo(el, target){
+    if(el == null) return;
+    if(reduce || target <= 0){ el.textContent = target > 0 ? target.toLocaleString() : '0'; return; }
+    var start = performance.now(), dur = 900;
+    function step(now){
+      var t = Math.min(1, (now-start)/dur);
+      var eased = 1 - Math.pow(1-t, 3);
+      el.textContent = Math.round(eased*target).toLocaleString();
+      if(t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  /* ---- live install count ---- */
+  fetch('/api/i').then(function(r){ return r.json(); }).then(function(d){
+    var el = document.getElementById('stat-installs');
+    if(d && d.count != null){ countTo(el, d.count); } else { el.textContent = 'new'; }
+  }).catch(function(){ var el = document.getElementById('stat-installs'); if(el) el.textContent='new'; });
+
+  /* ---- github stars ---- */
+  fetch('https://api.github.com/repos/adamhelfgott/nightshift').then(function(r){ return r.json(); }).then(function(d){
+    if(d && typeof d.stargazers_count === 'number'){
+      countTo(document.getElementById('stat-stars'), d.stargazers_count);
+      var s = document.getElementById('gh-star'); if(s) s.textContent = '★ ' + d.stargazers_count;
+    } else { document.getElementById('stat-stars').textContent='—'; }
+  }).catch(function(){});
+
+  /* ---- terminal boot ---- */
+  var term = document.getElementById('term');
+  var script = [
+    { cls:'u',     text:'› working the counter endpoint…' },
+    { cls:'agent', text:'  wrote api/i.js, deployed to prod' },
+    { cls:'ship',  text:'› deployed the counter API ✓', pause:400 },
+    { block:'block', tag:'[nightshift]', text:' ⛔ turn can\'t end on a receipt.\n             log a diary/idea — what did you figure out?', pause:600 },
+    { cls:'think', text:'› the bug wasn\'t the cache. two sessions share one\n  lock file — I only caught it because the timestamps\n  were 4h apart. same class as last week\'s. worth a helper.', typed:true },
+    { block:'pass', tag:'[nightshift]', text:' ✓ thinking logged. page published.', pause:300 }
+  ];
+
+  function renderStatic(){
+    term.innerHTML = '';
+    script.forEach(function(s){
+      if(s.block){
+        var b = document.createElement('span'); b.className = 'tblock ' + s.block;
+        b.innerHTML = '<span class="tag">'+s.tag+'</span>' + escapeHtml(s.text);
+        term.appendChild(b);
+      } else {
+        var line = document.createElement('span'); line.className = 'tline';
+        var span = document.createElement('span'); span.className = s.cls;
+        span.textContent = s.text; line.appendChild(span); term.appendChild(line);
+      }
+    });
+  }
+  function escapeHtml(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function playTyped(){
+    term.innerHTML = '';
+    var i = 0;
+    function next(){
+      if(i >= script.length){ return; }
+      var s = script[i++];
+      if(s.block){
+        var b = document.createElement('span'); b.className='tblock '+s.block;
+        b.innerHTML = '<span class="tag">'+s.tag+'</span>' + escapeHtml(s.text);
+        term.appendChild(b);
+        setTimeout(next, (s.pause||500));
+      } else if(s.typed){
+        var line = document.createElement('span'); line.className='tline';
+        var span = document.createElement('span'); span.className=s.cls; line.appendChild(span);
+        var cur = document.createElement('span'); cur.className='cursor'; line.appendChild(cur);
+        term.appendChild(line);
+        var full = s.text, k = 0;
+        (function typeChar(){
+          span.textContent = full.slice(0, k++);
+          if(k <= full.length){ setTimeout(typeChar, 14); }
+          else { cur.remove(); setTimeout(next, 300); }
+        })();
+      } else {
+        var l = document.createElement('span'); l.className='tline';
+        var sp = document.createElement('span'); sp.className=s.cls; sp.textContent=s.text; l.appendChild(sp);
+        term.appendChild(l);
+        setTimeout(next, (s.pause||260));
+      }
+    }
+    next();
+  }
+
+  if(reduce){ renderStatic(); }
+  else {
+    // play once when the terminal scrolls into view
+    var played = false;
+    var tio = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if(e.isIntersecting && !played){ played = true; playTyped(); tio.disconnect(); } });
+    }, { threshold: 0.35 });
+    tio.observe(term);
+  }
+})();
+</script>
+</body>
+</html>
