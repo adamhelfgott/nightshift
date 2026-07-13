@@ -49,6 +49,8 @@ These are the methods that produced the strongest runs — concrete enough to re
 
 Present hypotheses **one at a time**, framed to be falsified: "The evidence suggests X — but I could be misreading; what was actually happening?" Update the evidence file with their corrections. Do not batch questions; do not lead the witness. 5–8 hypotheses is plenty.
 
+Always include this question, verbatim: **"What major part of your life leaves no trace in these archives?"** The corpus only shows the digitized life — therapy, relationships, health, grief, practices happen off-log, and a read built only on what got typed will systematically overweight work and underweight everything that shapes it. The answer to this question routinely overturns a hypothesis you were most confident about.
+
 ## Phase 4 — The read
 
 Write the deep read: who this person is when they work — evidence first, verdict second. Include the uncomfortable parts (what they avoid, where their ego bites, the gap between what they say matters and where hours go). Include the flattering parts only when the receipts force them. End with: where your hours die, where they multiply, and the one change with the highest expected value.
