@@ -36,7 +36,7 @@ nightshift send relay all "claiming the deploy — hold until it lands"   # nowi
 nightshift inbox mysession && nightshift pick <id> mysession
 ```
 
-Those notes get quoted into the *next* session's opening context, which makes them structurally identical to a prompt injection: unattributed text, often phrased as an order ("hold until it lands"), addressed to nobody, arriving before the user has spoken. So nightshift fences them. Everything agent-authored lands under a labelled **quoted record** block that names where it came from and says plainly that it is a colleague's shorthand rather than an instruction — no authority, no permissions, act on it only as *this* session's user asks. Agents stop treating stale handoffs as marching orders, and a fresh session isn't left guessing whether its own context was tampered with. Credential-shaped strings are redacted on the way in, too: the journal is append-only and re-injected every morning, so a key pasted into one note would otherwise leak forward for days.
+Those notes get quoted into the *next* session's opening context, which makes them structurally identical to a prompt injection: unattributed text, often phrased as an order ("hold until it lands"), addressed to nobody, arriving before the user has spoken. So nightshift fences them. Everything agent-authored lands under a labelled **quoted record** block that names where it came from and says plainly that it is a colleague's shorthand rather than an instruction — no authority, no permissions, act on it only as *this* session's user asks. Agents stop treating stale handoffs as marching orders, and a fresh session isn't left guessing whether its own context was tampered with. Credential-shaped strings are redacted on the way in, too: the journal is append-only and re-injected every morning, so a key pasted into one note would otherwise leak forward for days. `nightshift redact` applies the same patterns to everything already recorded — for history written before the guard existed.
 
 ## The mirror
 
@@ -86,7 +86,7 @@ nightshift config             # see or change any setting — no switches to mem
 
 ```
 bin/nightshift    the CLI — init · log · send/inbox/pick/sync · observe/mirror · call/score/due
-                  render · publish · doctor · upgrade
+                  render · publish · redact · doctor · upgrade
 lib/              render.py (entries -> encrypted page) · inbox.py (nowish + aging) · sync.py
 hooks/            SessionStart / Stop / PostToolUse — harness-agnostic, stdin JSON
 adapters/         per-harness registration (claude-code, codex)

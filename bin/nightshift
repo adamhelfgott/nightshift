@@ -19,19 +19,24 @@ need(){ command -v "$1" >/dev/null 2>&1 || die "missing dependency: $1"; }
 ts(){ date +%Y-%m-%dT%H:%M; }          # LOCAL time on purpose
 day(){ date +%Y-%m-%d; }
 uid(){ echo "m$(date +%s)$RANDOM"; }
-scrub(){ # scrub TEXT — redact credential-shaped strings on the way into the journal.
-  # The journal is append-only and its notes are re-injected verbatim into future
-  # sessions, so a key pasted into one note leaks forward every morning until it
-  # ages out — and no one is reading the jsonl to notice. Shape-matching only:
-  # prefix + length, never meaning. Anything not obviously a secret passes through.
-  printf '%s' "$1" | sed -E \
+scrub_stream(){ # redact credential-shaped strings from stdin -> stdout.
+  # The single source of truth for BOTH the write path (scrub) and the retroactive
+  # pass (nightshift redact). The journal is append-only and its notes are re-injected
+  # verbatim into future sessions, so a key pasted into one note leaks forward every
+  # morning until it ages out — and no one is reading the jsonl to notice. Shape-matching
+  # only: distinctive prefix + length, never meaning. Prefix-anchored on purpose — it will
+  # NOT touch a 40-char git SHA or a "key: value" prose phrase, only real-secret shapes.
+  sed -E \
     -e 's/(sk-[A-Za-z0-9_-]{4})[A-Za-z0-9_-]{12,}[0-9][A-Za-z0-9_-]*/\1[redacted]/g' \
     -e 's/(gh[pousr]_|github_pat_)[A-Za-z0-9_]{10,}/\1[redacted]/g' \
+    -e 's/(glpat-)[A-Za-z0-9_-]{15,}/\1[redacted]/g' \
+    -e 's/(AIza)[A-Za-z0-9_-]{35}/\1[redacted]/g' \
     -e 's/(AKIA|ASIA)[A-Z0-9]{16}/\1[redacted]/g' \
     -e 's/(xox[baprs]-)[A-Za-z0-9-]{10,}/\1[redacted]/g' \
     -e 's/([Bb]earer )[A-Za-z0-9._~+\/-]{20,}=*/\1[redacted]/g' \
     -e 's/(-----BEGIN [A-Z ]*PRIVATE KEY-----).*/\1[redacted]/g'
 }
+scrub(){ printf '%s' "$1" | scrub_stream; }  # scrub a single TEXT arg on the way in
 cfg_set(){ # cfg_set KEY VALUE — update or append in $NS_HOME/config
   f="$NS_HOME/config"; mkdir -p "$NS_HOME"; [ -f "$f" ] || touch "$f"
   awk -v k="$1" -v v="$2" 'BEGIN{done=0} $0 ~ "^"k"=" {print k"=\""v"\""; done=1; next} {print} END{if(!done) print k"=\""v"\""}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
@@ -125,6 +130,32 @@ inbox) # nightshift inbox [session]
 sync) # nightshift sync <orphan-home> [...] [--nowish]  — merge a sandbox/fallback store back home
   need python3
   NIGHTSHIFT_HOME="$NS_HOME" python3 "$LIB/sync.py" "$@"
+  ;;
+
+redact) # nightshift redact — retroactively scrub credential-shaped strings from the whole journal
+  # scrub() only guards NEW writes; anything logged before it existed (or by a tool that
+  # bypassed it) still gets re-injected every morning. This applies the same patterns to
+  # every existing entry, nowish note, and observation. Backs up before touching anything;
+  # a no-op on a clean journal. The one sanctioned mutation of the append-only record.
+  files=0; changed=0; bk=""
+  for f in "$ENTRIES"/*.jsonl "$NOWISH" "$NS_HOME/observations.jsonl"; do
+    [ -f "$f" ] || continue
+    tmp="$f.ns-scrub.$$"
+    scrub_stream < "$f" > "$tmp"
+    if cmp -s "$f" "$tmp"; then rm -f "$tmp"; continue; fi
+    n=$(diff "$f" "$tmp" | grep -c '^<' || true)
+    if [ -z "$bk" ]; then bk="$NS_HOME/.redact-backup-$(date +%Y%m%d-%H%M%S)"; mkdir -p "$bk"; fi
+    cp "$f" "$bk/$(basename "$f")"
+    mv "$tmp" "$f"
+    files=$((files+1)); changed=$((changed+n))
+    echo "  redacted $n line(s): $(basename "$f")"
+  done
+  if [ "$changed" -eq 0 ]; then
+    echo "journal clean — no credential-shaped strings found ($(ls "$ENTRIES"/*.jsonl 2>/dev/null | wc -l | tr -d ' ') entry files scanned)."
+  else
+    echo "redacted $changed line(s) across $files file(s). Backup: $bk"
+    echo "run 'nightshift publish' to re-render the cleaned page."
+  fi
   ;;
 
 call) # nightshift call <session> "<claim>" <confidence%> [due YYYY-MM-DD]  — log a falsifiable prediction
@@ -341,6 +372,7 @@ nightshift — an encrypted, multi-session work journal for AI coding agents.
   nightshift inbox [session]              open messages for you / all
   nightshift pick <id> <by>               claim/ack a message
   nightshift sync <orphan-home> [...]     merge a sandbox/fallback store back into the home journal
+  nightshift redact                       retroactively scrub credential-shaped strings from the journal
   nightshift observe <session> <text>     log an observation about your human (private)
   nightshift mirror [on|off|drop <id>]    that private register (never published; drop what's wrong)
   nightshift mirror deep                  print the Mirror Protocol (the full deep-read)
